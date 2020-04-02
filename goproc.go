@@ -216,6 +216,23 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		}
 		cmd.state = Started
 
+		if cmd.UseChannelApi {
+			go (func() {
+				scanner := bufio.NewScanner(stdout)
+				scanner.Split(bufio.ScanLines)
+				for scanner.Scan() {
+					cmd.StdoutChannel <- scanner.Text()
+				}
+			})()
+			go (func() {
+				scanner := bufio.NewScanner(stderr)
+				scanner.Split(bufio.ScanLines)
+				for scanner.Scan() {
+					cmd.StderrChannel <- scanner.Text()
+				}
+			})()
+		}
+
 		// call callback or pipe
 		// * read their stdout and stderr;
 		hasOutCallback := cmd.OnStdout != nil
@@ -231,11 +248,6 @@ func (g *Goproc) Start(cmdId CommandId) error {
 					}
 					if !cmd.HideStdout {
 						log.Println(prefix + line)
-					}
-					if cmd.UseChannelApi {
-						go (func() {
-							cmd.StdoutChannel <- line
-						})()
 					}
 				}
 			})()
@@ -254,11 +266,6 @@ func (g *Goproc) Start(cmdId CommandId) error {
 					}
 					if !cmd.HideStdout {
 						log.Println(prefix + line)
-					}
-					if cmd.UseChannelApi {
-						go (func() {
-							cmd.StderrChannel <- line
-						})()
 					}
 				}
 			})()
