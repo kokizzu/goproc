@@ -28,17 +28,17 @@ cmdId := daemon.AddCommand(&goproc.Cmd{
     Program: `sleep`, // program to run
     Parameters: []string{`2`}, // command line arguments
     MaxRestart: goproc.RestartForever, // default: NoRestart=0
-    OnStderr: func(cmd *goproc.Cmd, s string) error { // optional
-        fmt.Println(`OnStderr: `+s)
+    OnStderr: func(cmd *goproc.Cmd, line string) error { // optional
+        fmt.Println(`OnStderr: `+line)
         return nil
     },
-    OnStdout: func(cmd *goproc.Cmd, s string) error { // optional
-        fmt.Println(`OnStdout: `+s)
+    OnStdout: func(cmd *goproc.Cmd, line string) error { // optional
+        fmt.Println(`OnStdout: `+line)
         return nil
     },
 })
 
-daemon.Start(cmdId) // use go if you need non-blocking version
+daemon.Start(cmdId) // use "go" keyword if you need non-blocking version
 
 ```
 

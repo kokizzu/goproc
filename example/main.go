@@ -19,16 +19,16 @@ func main() {
 		Parameters:   []string{`123`},
 		StartDelayMs: 1000,
 		MaxRestart:   goproc.RestartForever,
-		OnStderr: func(cmd *goproc.Cmd, s string) error {
-			fmt.Println(`OnStderr:0: ` + s)
+		OnStderr: func(cmd *goproc.Cmd, line string) error {
+			fmt.Println(`OnStderr:0: ` + line)
 			return nil
 		},
-		OnStdout: func(cmd *goproc.Cmd, s string) error {
-			fmt.Println(`OnStdout:0: ` + s)
+		OnStdout: func(cmd *goproc.Cmd, line string) error {
+			fmt.Println(`OnStdout:0: ` + line)
 			return nil
 		},
 		OnProcessCompleted: func(cmd *goproc.Cmd, durationMs int64) {
-			fmt.Println(`OnProcessCompleted:0: done in ` + I.ToS(durationMs) + `ms`)
+			fmt.Println(`OnProcessCompleted:0: done in ` + I.ToS(durationMs) + ` ms`)
 		},
 		OnRestart: func(cmd *goproc.Cmd) int64 {
 			sleep := 1000 + rand.Int63()%3000
@@ -63,7 +63,7 @@ func main() {
 			case line := <-cmd.StderrChannel:
 				fmt.Println(`StderrChannel:1: ` + line)
 			case durationMs := <-cmd.ProcesssCompletedChannel:
-				fmt.Println(`ProcesssCompletedChannel:1: done in ` + I.ToS(durationMs) + `ms`)
+				fmt.Println(`ProcesssCompletedChannel:1: done in ` + I.ToS(durationMs) + ` ms`)
 			case <-cmd.ExitChannel:
 				fmt.Println(`ExitChannel:1`)
 				wg.Done()
