@@ -18,7 +18,7 @@ import "sync"
 type CommandId int
 
 type StringCallback func(*Cmd, string) error
-
+type IntCallback func(*Cmd, int64)
 type ParameterlessCallback func(*Cmd)
 
 type IntReturningCallback func(*Cmd) int64
@@ -51,7 +51,7 @@ type Cmd struct {
 	HideStderr         bool
 	OnStderr           StringCallback
 	OnExit             ParameterlessCallback // when max restart reached, or manually killed
-	OnProcessCompleted ParameterlessCallback
+	OnProcessCompleted IntCallback
 	MaxRestart         int
 	MaxRuntime         int // maximum command execution time
 	restartCount       int
@@ -62,7 +62,7 @@ type Cmd struct {
 	UseChannelApi            bool
 	StdoutChannel            chan string
 	StderrChannel            chan string
-	ProcesssCompletedChannel chan bool
+	ProcesssCompletedChannel chan int64
 	ExitChannel              chan bool
 }
 
@@ -125,7 +125,7 @@ func (g *Goproc) AddCommand(cmd *Cmd) CommandId {
 	cmd.StdoutChannel = make(chan string)
 	cmd.StderrChannel = make(chan string)
 	cmd.ExitChannel = make(chan bool)
-	cmd.ProcesssCompletedChannel = make(chan bool)
+	cmd.ProcesssCompletedChannel = make(chan int64)
 	cmd.state = NotStarted
 	// * start processes with given arguments and environment variables;
 	g.procs = append(g.procs, &Process{
@@ -210,6 +210,7 @@ func (g *Goproc) Start(cmdId CommandId) error {
 			return err
 		}
 		log.Printf(prefix + `starting: ` + cmd.String())
+		start := time.Now()
 		err = proc.exe.Start()
 		if L.IsError(err, prefix+`error proc.exe.Start %s`, cmd) {
 			return err
@@ -285,10 +286,11 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		}
 
 		if cmd.OnProcessCompleted != nil {
-			cmd.OnProcessCompleted(cmd)
+			durationMs := time.Since(start).Milliseconds()
+			cmd.OnProcessCompleted(cmd, durationMs)
 			if cmd.UseChannelApi {
 				go (func() {
-					cmd.ProcesssCompletedChannel <- true
+					cmd.ProcesssCompletedChannel <- durationMs
 				})()
 			}
 		}
