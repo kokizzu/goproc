@@ -9,12 +9,12 @@ Process manager library. Features:
 * read their stdout and stderr; `Cmd.OnStdout`, `Cmd.OnStdErr`
 * should work on Linux and macOS (untested on macOS tho).
 * ability to stop processes when main processes are SIGKILL'ed `.Cleanup` called automatically when main process killed;
-* see more example on `example/` for other usage demo;
 * configurable backoff strategy for restarts; you can use `Cmd.OnRestart` callback to return random delay or implement your own exponential backoff
 * `Cmd.OnExit` when no more restart reached
 * `Cmd.OnProcessCompleted` callback each time program completed once (before restarting if MaxRestart not yet reached)
 * `Cmd.StartDelayMs` for delaying start
 * `Cmd.UseChannelApi`, if enabled, you must handle all 4 channel: `Cmd.StderrChannel`, `Cmd.OnStdoutChannel`, `Cmd.ProcessCompletedchannel`, `Cmd.ExitChannel` 
+* see [example/](//github.com/kokizzu/goproc/blob/master/example/main.go) for other usage example/demo;
 
 ## Example
 
