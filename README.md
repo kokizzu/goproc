@@ -14,6 +14,7 @@ Simple process manager helper library, features:
 * `Cmd.StartDelayMs=1000` (=1s, default is 0) for delaying start, in milliseconds
 * `Cmd.UseChannelApi=true`, if enabled, you must handle all 4 channels: `Cmd.StderrChannel`, `Cmd.OnStdoutChannel`, `Cmd.ProcessCompletedChannel`, `Cmd.ExitChannel` 
 * `Cmd.LastExecutionError` property to get last process execution error, check this [answer](//stackoverflow.com/questions/10385551/get-exit-code-go) to get the exit code
+* `Cmd.OnStateChanged` callback and `Cmd.StateChangedChannel` channel to track process state
 * should work on Linux, and probably MacOS and Windows (untested).
 * see [example/](//github.com/kokizzu/goproc/blob/master/example/main.go) for other usage example/demo;
 

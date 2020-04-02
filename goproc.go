@@ -16,14 +16,14 @@ import "log"
 import "sync"
 
 type CommandId int
+type CmdState int
 
 type StringCallback func(*Cmd, string) error
 type IntCallback func(*Cmd, int64)
+type CmdStateCallback func(*Cmd, CmdState, CmdState)
 type ParameterlessCallback func(*Cmd)
 
 type IntReturningCallback func(*Cmd) int64
-
-type CmdState int
 
 const (
 	NoRestart      = 0
@@ -31,32 +31,39 @@ const (
 )
 
 const (
-	NotStarted CmdState = iota
-	Started
-	Killed
-	Crashed
-	Exited
+	NotStarted CmdState = iota // program can be started (again)
+	Started                    // program running
+	Killed                     // program killed using API
+	Crashed                    // program terminated with error
+	Exited                     // program terminated without error
 )
 
 type Cmd struct {
-	Program            string
-	InheritEnv         bool                 // inherit current console's env
-	Env                []string             // environment variables
-	Parameters         []string             // program parameters
-	StartDelayMs       int64                // delay before starting process
-	RestartDelayMs     int64                // delay before restarting process, <0 if you don't want to restart this process
-	OnRestart          IntReturningCallback // this overwrites RestartDelayMs
-	HideStdout         bool
-	OnStdout           StringCallback
-	HideStderr         bool
-	OnStderr           StringCallback
+	Program    string   // program name, could be full path or only the program name, depends on PATH environment variables
+	Parameters []string // program parameters
+
+	InheritEnv bool     // inherit current console's env
+	Env        []string // environment variables
+
+	StartDelayMs   int64 // delay before starting process
+	RestartDelayMs int64 // delay before restarting process, <0 if you don't want to restart this process
+
+	HideStdout bool // disable stdout logging
+	HideStderr bool // disable stderr logging
+
+	MaxRestart         int   // -1 = always restart, 0 = only run once, >0 run N times
+	LastExecutionError error // last execution error, useful for OnProcessCompleted or ProcessCompletedChannel
+	RestartCount       int   // can be overwritten for early exit or restart from 0
+
+	OnStdout           StringCallback        // one line fetched from stdout
+	OnStderr           StringCallback        // one line fetched from stderr
+	OnRestart          IntReturningCallback  // this overwrites RestartDelayMs
 	OnExit             ParameterlessCallback // when max restart reached, or manually killed
-	OnProcessCompleted IntCallback
-	MaxRestart         int
-	MaxRuntime         int // maximum command execution time
-	restartCount       int
-	state              CmdState
-	strCache           string
+	OnProcessCompleted IntCallback           // when 1x process done, can be restarting depends on RestartCount and MaxCount
+	OnStateChanged     CmdStateCallback      // triggered when stated changed
+
+	state    CmdState
+	strCache string
 
 	// channel API
 	UseChannelApi            bool
@@ -64,7 +71,7 @@ type Cmd struct {
 	StderrChannel            chan string
 	ProcesssCompletedChannel chan int64
 	ExitChannel              chan bool
-	LastExecutionError       error
+	StateChangedChannel      chan CmdState
 }
 
 func (cmd *Cmd) String() string {
@@ -90,6 +97,19 @@ func (cmd *Cmd) String() string {
 
 func (g *Cmd) GetState() CmdState {
 	return g.state
+}
+
+func (cmd *Cmd) setState(newState CmdState) {
+	oldState := cmd.state
+	cmd.state = newState
+	if cmd.OnStateChanged != nil {
+		cmd.OnStateChanged(cmd, oldState, newState)
+	}
+	if cmd.UseChannelApi {
+		go (func() {
+			cmd.StateChangedChannel <- newState
+		})()
+	}
 }
 
 type Process struct {
@@ -127,6 +147,7 @@ func (g *Goproc) AddCommand(cmd *Cmd) CommandId {
 	cmd.StderrChannel = make(chan string)
 	cmd.ExitChannel = make(chan bool)
 	cmd.ProcesssCompletedChannel = make(chan int64)
+	cmd.StateChangedChannel = make(chan CmdState)
 	cmd.state = NotStarted
 	// * start processes with given arguments and environment variables;
 	g.procs = append(g.procs, &Process{
@@ -159,8 +180,8 @@ func (g *Goproc) Signal(cmdId CommandId, signal os.Signal) error {
 	}
 	if signal == os.Kill {
 		// * stop them; signal=os.Kill
-		cmd.state = Killed
 		err := proc.exe.Process.Kill()
+		cmd.setState(Killed)
 		if L.IsError(err, `error proc.exe.Process.Kill`) {
 			return err
 		}
@@ -184,6 +205,7 @@ func (g *Goproc) Start(cmdId CommandId) error {
 	prefix := `CMD:` + I.ToStr(idx) + `: `
 
 	cmd := g.cmds[idx]
+	cmd.strCache = `` // reset cache
 
 	if cmd.state != NotStarted {
 		return fmt.Errorf(`invalid command state=%d already started`, cmd.state)
@@ -216,7 +238,7 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		if L.IsError(err, prefix+`error proc.exe.Start %s`, cmd) {
 			return err
 		}
-		cmd.state = Started
+		cmd.setState(Started)
 
 		if cmd.UseChannelApi {
 			go (func() {
@@ -277,12 +299,12 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		err = proc.exe.Wait()
 		if L.IsError(err, prefix+`error proc.exe.Wait %s`, cmd) {
 			if cmd.state != Killed {
-				cmd.state = Crashed
+				cmd.setState(Crashed)
 			}
 		} else {
 			log.Println("exited")
 			if cmd.state != Killed {
-				cmd.state = Exited
+				cmd.setState(Exited)
 			}
 		}
 		cmd.LastExecutionError = err
@@ -298,8 +320,8 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		}
 
 		// * restart them when they crash;
-		cmd.restartCount += 1
-		if cmd.MaxRestart > RestartForever && cmd.restartCount > cmd.MaxRestart {
+		cmd.RestartCount += 1
+		if cmd.MaxRestart > RestartForever && cmd.RestartCount > cmd.MaxRestart {
 			log.Printf(prefix+`max restart reached %d`, cmd.MaxRestart)
 			break
 		}
@@ -310,11 +332,11 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		}
 		time.Sleep(time.Millisecond * time.Duration(delayMs))
 
-		log.Printf(prefix+`restarting.. x%d %s`, cmd.restartCount, cmd)
+		log.Printf(prefix+`restarting.. x%d %s`, cmd.RestartCount, cmd)
 	}
 
-	cmd.state = NotStarted
-	cmd.restartCount = 0
+	cmd.setState(NotStarted)
+	cmd.RestartCount = 0
 
 	if cmd.OnExit != nil {
 		cmd.OnExit(cmd)
