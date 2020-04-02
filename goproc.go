@@ -57,6 +57,12 @@ type Cmd struct {
 	restartCount       int
 	state              CmdState
 	strCache           string
+	// channel API
+	UseChannelApi            bool // if true, you must handle all 4 channels, or they will have old data after Exit then Start again (eg. if first Start channel not handled, then Exit, and then Start again but with channel handled, the channel would still hold first run's data)
+	StdoutChannel            chan string
+	StderrChannel            chan string
+	ProcesssCompletedChannel chan bool
+	ExitChannel              chan bool
 }
 
 func (cmd *Cmd) String() string {
@@ -204,6 +210,23 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		}
 		cmd.state = Started
 
+		// use channel API
+		if cmd.UseChannelApi {
+			go (func() {
+				scanner := bufio.NewScanner(stderr)
+				scanner.Split(bufio.ScanLines)
+				for scanner.Scan() {
+					cmd.StderrChannel <- scanner.Text()
+				}
+			})()
+			go (func() {
+				scanner := bufio.NewScanner(stdout)
+				scanner.Split(bufio.ScanLines)
+				for scanner.Scan() {
+					cmd.StdoutChannel <- scanner.Text()
+				}
+			})()
+		}
 		// call callback or pipe
 		// * read their stdout and stderr;
 		hasOutCallback := cmd.OnStdout != nil
@@ -257,6 +280,11 @@ func (g *Goproc) Start(cmdId CommandId) error {
 
 		if cmd.OnProcessCompleted != nil {
 			cmd.OnProcessCompleted(cmd)
+			if cmd.UseChannelApi {
+				go (func() {
+					cmd.ProcesssCompletedChannel <- true
+				})()
+			}
 		}
 
 		// * restart them when they crash;
@@ -280,6 +308,11 @@ func (g *Goproc) Start(cmdId CommandId) error {
 
 	if cmd.OnExit != nil {
 		cmd.OnExit(cmd)
+	}
+	if cmd.UseChannelApi {
+		go (func() {
+			cmd.ExitChannel <- true
+		})()
 	}
 
 	return nil

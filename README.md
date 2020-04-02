@@ -14,6 +14,7 @@ Process manager library. Features:
 * `Cmd.OnExit` when no more restart reached
 * `Cmd.OnProcessCompleted` callback each time program completed once (before restarting if MaxRestart not yet reached)
 * `Cmd.StartDelayMs` for delaying start
+* `Cmd.UseChannelApi`, if enabled, you must handle all 4 channel: `Cmd.StderrChannel`, `Cmd.OnStdoutChannel`, `Cmd.ProcessCompletedchannel`, `Cmd.ExitChannel` 
 
 ## Example
 
@@ -42,7 +43,6 @@ daemon.Start(cmdId) // use go if you need non-blocking version
 ## TODO
 
 * implement `.Pause` and `.Resume` API
-* implement `.OnStderr(cmdId)`, `.OnStdout(cmdId)`, `.OnProcessCompleted(cmdId)`, `.OnExit(cmdId)` Channel API (use MultiReader and 2 more goroutine (one for stdin, one for stderr) so it won't block current callback and logger)
 * comments and documentation in code;
 * continuous integration configuration;
 * integration tests;
