@@ -1,9 +1,9 @@
 # goproc
 
-Process manager library
+Process manager library. Features:
 
 * start processes with given arguments and environment variables; `.Start`
-* stop them; `.Signal(cmdId,os.Kill)`
+* stop them; `.Kill(cmdId)`
 * restart them when they crash;  
 * relay termination signals; `.Signal(cmdId, ...)`
 * read their stdout and stderr; `.OnStdout, .OnStdErr`
@@ -29,16 +29,14 @@ cmdId := daemon.AddCommand(&goproc.Cmd{
         fmt.Println(`OnStdout: `+s)
         return nil
     },
-    OnExit: func(cmd *goproc.Cmd) {
-        return
-    },
 })
 
-daemon.Start(cmdId)
+daemon.Start(cmdId) // use go if you need non-blocking version
 ```
 
 ## TODO
 
+* Pause and Resume API
 * comments and documentation in code;
 * continuous integration configuration;
 * integration tests;

@@ -40,6 +40,7 @@ const (
 
 type Cmd struct {
 	Program            string
+	InheritEnv         bool                 // inherit current console's env
 	Env                []string             // environment variables
 	Parameters         []string             // program parameters
 	StartDelayMs       int64                // delay before starting process
@@ -77,6 +78,10 @@ func (cmd *Cmd) String() string {
 	}
 	cmd.strCache += ` "` + strings.Join(arr, `" "`) + `"`
 	return cmd.strCache
+}
+
+func (g *Cmd) GetState() CmdState {
+	return g.state
 }
 
 type Process struct {
@@ -117,6 +122,10 @@ func (g *Goproc) AddCommand(cmd *Cmd) CommandId {
 	})
 	cmdId := len(g.cmds) - 1
 	return CommandId(cmdId)
+}
+
+func (g *Goproc) Kill(cmdId CommandId) error {
+	return g.Signal(cmdId, os.Kill)
 }
 
 // send signal to process
@@ -173,8 +182,11 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		// refill process
 		proc := g.procs[idx]
 		proc.exe = exec.Command(cmd.Program, cmd.Parameters...)
-		env := append(os.Environ(), cmd.Env...)
-		proc.exe.Env = env
+		if cmd.InheritEnv {
+			proc.exe.Env = append(os.Environ(), cmd.Env...)
+		} else {
+			proc.exe.Env = cmd.Env
+		}
 
 		// get output buffer and start
 		stderr, err := proc.exe.StderrPipe()
@@ -290,6 +302,6 @@ func (g *Goproc) Cleanup() {
 	defer g.lock.Unlock()
 
 	for idx := range g.cmds {
-		g.Signal(CommandId(idx), os.Kill)
+		g.Kill(CommandId(idx))
 	}
 }
