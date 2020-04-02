@@ -2,15 +2,15 @@
 
 Process manager library. Features:
 
-* start processes with given arguments and environment variables; `.Start`
-* stop them; `.Kill(cmdId)`
-* restart them when they crash;  
+* start processes with given arguments and environment variables; `.AddCommand` and `.Start` or `.StartAll`
+* stop them; `.Kill(cmdId)` or `.Cleanup` to kill all process
+* restart them when they crash; `.RestartDelayMs` and `.MaxRestart`
 * relay termination signals; `.Signal(cmdId, ...)`
 * read their stdout and stderr; `.OnStdout, .OnStdErr`
 * should work on Linux and macOS (not tested on mac).
-* ability to stop processes when main processes are SIGKILL'ed `.Cleanup` called when main process killed;
-* see more example on `example/` for other demonstrates the usage;
-* configurable backoff strategy for restarts; `OnRestart` callback
+* ability to stop processes when main processes are SIGKILL'ed `.Cleanup` called automatically when main process killed;
+* see more example on `example/` for other demonstrating the usage;
+* configurable backoff strategy for restarts; you can use `OnRestart` callback to return random delay or implement exponential backoff
 
 ## Example
 
