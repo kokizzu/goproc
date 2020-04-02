@@ -1,6 +1,6 @@
 # goproc
 
-Simple process manager library, features:
+Simple process manager helper library, features:
 
 * start processes `.AddCommand(Cmd)` and `.Start(cmdId)` or `.StartAll()`, with environment variables `Cmd.Env=[]string{}` and `Cmd.InheritEnv=true` 
 * stop them; `.Kill(cmdId)` or `.Cleanup()` to kill all process
@@ -13,7 +13,8 @@ Simple process manager library, features:
 * `Cmd.OnProcessCompleted` callback each time program completed once (before restarting if MaxRestart not yet reached)
 * `Cmd.StartDelayMs=1000` (=1s, default is 0) for delaying start, in milliseconds
 * `Cmd.UseChannelApi=true`, if enabled, you must handle all 4 channels: `Cmd.StderrChannel`, `Cmd.OnStdoutChannel`, `Cmd.ProcessCompletedChannel`, `Cmd.ExitChannel` 
-* should work on Linux and MacOS (untested tho).
+* `Cmd.LastExecutionError` property to get last process execution error, check this [answer](//stackoverflow.com/questions/10385551/get-exit-code-go) to get the exit code
+* should work on Linux, and probably MacOS and Windows (untested).
 * see [example/](//github.com/kokizzu/goproc/blob/master/example/main.go) for other usage example/demo;
 
 ## Example

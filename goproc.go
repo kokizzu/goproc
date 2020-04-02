@@ -64,6 +64,7 @@ type Cmd struct {
 	StderrChannel            chan string
 	ProcesssCompletedChannel chan int64
 	ExitChannel              chan bool
+	LastExecutionError       error
 }
 
 func (cmd *Cmd) String() string {
@@ -284,6 +285,7 @@ func (g *Goproc) Start(cmdId CommandId) error {
 				cmd.state = Exited
 			}
 		}
+		cmd.LastExecutionError = err
 
 		if cmd.OnProcessCompleted != nil {
 			durationMs := time.Since(start).Milliseconds()
