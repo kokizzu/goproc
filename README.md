@@ -15,6 +15,7 @@ Process manager library. Features:
 ## Example
 
 ```
+
 daemon := goproc.New()
 
 cmdId := daemon.AddCommand(&goproc.Cmd{
@@ -32,11 +33,13 @@ cmdId := daemon.AddCommand(&goproc.Cmd{
 })
 
 daemon.Start(cmdId) // use go if you need non-blocking version
+
 ```
 
 ## TODO
 
-* Pause and Resume API
+* implement .Pause and .Resume API
+* implement `.OnStderr(cmdId)`, `.OnStdout(cmdId)`, `.OnProcessCompleted(cmdId)`, `.OnExit(cmdId)` Channel API (use MultiReader and 2 more goroutine (one for stdin, one for stderr) so it won't block current callback and logger)
 * comments and documentation in code;
 * continuous integration configuration;
 * integration tests;
