@@ -13,9 +13,10 @@ func main() {
 
 	// callback API demo
 	cmdId := runner.AddCommand(&goproc.Cmd{
-		Program:    `sleep`,
-		Parameters: []string{`2`},
-		MaxRestart: goproc.RestartForever,
+		Program:        `echo`,
+		Parameters:     []string{`123`},
+		RestartDelayMs: 2000,
+		MaxRestart:     goproc.RestartForever,
 		OnStderr: func(cmd *goproc.Cmd, s string) error {
 			fmt.Println(`OnStderr0: ` + s)
 			return nil
@@ -36,7 +37,9 @@ func main() {
 		Parameters:     []string{`ux`},
 		RestartDelayMs: 3000,
 		MaxRestart:     2,
-		UseChannelApi:  true, // note: must handle all 4 channel, or it will stuck
+		UseChannelApi:  true,
+		HideStdout:     true,
+		HideStderr:     true,
 		// callback API also still can be used
 	}
 	cmd2id := runner.AddCommand(cmd)
@@ -45,12 +48,13 @@ func main() {
 		for {
 			select {
 			case line := <-cmd.StdoutChannel:
-				fmt.Println(`OnStderr1: ` + line)
+				fmt.Println(`StdoutChannel1: ` + line)
 			case line := <-cmd.StderrChannel:
-				fmt.Println(`OnStderr1: ` + line)
+				fmt.Println(`StderrChannel1: ` + line)
 			case <-cmd.ProcesssCompletedChannel:
-				// do nothing, but must be implemented or the channel will stuck
+				fmt.Println(`ProcesssCompletedChannel1`)
 			case <-cmd.ExitChannel:
+				fmt.Println(`ExitChannel1`)
 				wg.Done()
 			}
 		}

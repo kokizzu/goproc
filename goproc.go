@@ -57,8 +57,9 @@ type Cmd struct {
 	restartCount       int
 	state              CmdState
 	strCache           string
+
 	// channel API
-	UseChannelApi            bool // if true, you must handle all 4 channels, or they will have old data after Exit then Start again (eg. if first Start channel not handled, then Exit, and then Start again but with channel handled, the channel would still hold first run's data)
+	UseChannelApi            bool
 	StdoutChannel            chan string
 	StderrChannel            chan string
 	ProcesssCompletedChannel chan bool
@@ -121,6 +122,10 @@ func (g *Goproc) AddCommand(cmd *Cmd) CommandId {
 	g.lock.Lock()
 	defer g.lock.Unlock()
 	g.cmds = append(g.cmds, cmd)
+	cmd.StdoutChannel = make(chan string)
+	cmd.StderrChannel = make(chan string)
+	cmd.ExitChannel = make(chan bool)
+	cmd.ProcesssCompletedChannel = make(chan bool)
 	cmd.state = NotStarted
 	// * start processes with given arguments and environment variables;
 	g.procs = append(g.procs, &Process{
@@ -148,20 +153,21 @@ func (g *Goproc) Signal(cmdId CommandId, signal os.Signal) error {
 
 	log.Printf(prefix+`signalling %s\n`, cmd)
 
-	if cmd.state != NotStarted {
-		if signal == os.Kill {
-			// * stop them; signal=os.Kill
-			cmd.state = Killed
-			err := proc.exe.Process.Kill()
-			if L.IsError(err, `error proc.exe.Process.Kill`) {
-				return err
-			}
-		} else {
-			// * relay termination signals;
-			err := proc.exe.Process.Signal(signal)
-			if L.IsError(err, `error proc.exe.Process.Signal %d`, signal) {
-				return err
-			}
+	if cmd.state != Started {
+		return fmt.Errorf(`process not started: %d`, cmd.state)
+	}
+	if signal == os.Kill {
+		// * stop them; signal=os.Kill
+		cmd.state = Killed
+		err := proc.exe.Process.Kill()
+		if L.IsError(err, `error proc.exe.Process.Kill`) {
+			return err
+		}
+	} else {
+		// * relay termination signals;
+		err := proc.exe.Process.Signal(signal)
+		if L.IsError(err, `error proc.exe.Process.Signal %d`, signal) {
+			return err
 		}
 	}
 	return nil
@@ -174,7 +180,7 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		return fmt.Errorf(`invalid command index, should be zero to %d`, len(g.cmds)-1)
 	}
 
-	prefix := `cmd` + I.ToStr(idx) + `: `
+	prefix := `CMD:` + I.ToStr(idx) + `: `
 
 	cmd := g.cmds[idx]
 
@@ -203,34 +209,17 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		if L.IsError(err, prefix+`error proc.exe.StdoutPipe %s`, cmd) {
 			return err
 		}
-		log.Printf(prefix + ` starting: ` + cmd.String())
+		log.Printf(prefix + `starting: ` + cmd.String())
 		err = proc.exe.Start()
 		if L.IsError(err, prefix+`error proc.exe.Start %s`, cmd) {
 			return err
 		}
 		cmd.state = Started
 
-		// use channel API
-		if cmd.UseChannelApi {
-			go (func() {
-				scanner := bufio.NewScanner(stderr)
-				scanner.Split(bufio.ScanLines)
-				for scanner.Scan() {
-					cmd.StderrChannel <- scanner.Text()
-				}
-			})()
-			go (func() {
-				scanner := bufio.NewScanner(stdout)
-				scanner.Split(bufio.ScanLines)
-				for scanner.Scan() {
-					cmd.StdoutChannel <- scanner.Text()
-				}
-			})()
-		}
 		// call callback or pipe
 		// * read their stdout and stderr;
 		hasOutCallback := cmd.OnStdout != nil
-		if hasOutCallback || !cmd.HideStdout {
+		if hasOutCallback || !cmd.HideStdout || cmd.UseChannelApi {
 			go (func() {
 				scanner := bufio.NewScanner(stderr)
 				scanner.Split(bufio.ScanLines)
@@ -243,12 +232,17 @@ func (g *Goproc) Start(cmdId CommandId) error {
 					if !cmd.HideStdout {
 						log.Println(prefix + line)
 					}
+					if cmd.UseChannelApi {
+						go (func() {
+							cmd.StdoutChannel <- line
+						})()
+					}
 				}
 			})()
 		}
 
 		hasErrCallback := cmd.OnStderr != nil
-		if hasErrCallback || !cmd.HideStdout {
+		if hasErrCallback || !cmd.HideStdout || cmd.UseChannelApi {
 			go (func() {
 				scanner := bufio.NewScanner(stdout)
 				scanner.Split(bufio.ScanLines)
@@ -260,6 +254,11 @@ func (g *Goproc) Start(cmdId CommandId) error {
 					}
 					if !cmd.HideStdout {
 						log.Println(prefix + line)
+					}
+					if cmd.UseChannelApi {
+						go (func() {
+							cmd.StderrChannel <- line
+						})()
 					}
 				}
 			})()
@@ -290,7 +289,7 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		// * restart them when they crash;
 		cmd.restartCount += 1
 		if cmd.MaxRestart > RestartForever && cmd.restartCount > cmd.MaxRestart {
-			log.Printf(prefix+`max restart reached %d\n`, cmd.MaxRestart)
+			log.Printf(prefix+`max restart reached %d`, cmd.MaxRestart)
 			break
 		}
 
@@ -300,7 +299,7 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		}
 		time.Sleep(time.Millisecond * time.Duration(delayMs))
 
-		log.Printf(prefix+`restarting.. x%d %s\n`, cmd.restartCount, cmd)
+		log.Printf(prefix+`restarting.. x%d %s`, cmd.restartCount, cmd)
 	}
 
 	cmd.state = NotStarted
