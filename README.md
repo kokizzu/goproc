@@ -12,7 +12,7 @@ Simple process manager helper library, features:
 * `Cmd.OnExit` callback when no more restart reached, you can call `.Start(cmdId)` manually again after this
 * `Cmd.OnProcessCompleted` callback each time program completed once (before restarting if MaxRestart not yet reached)
 * `Cmd.StartDelayMs=1000` (=1s, default is 0) for delaying start, in milliseconds
-* `Cmd.UseChannelApi=true`, if enabled, you must handle all 4 channels: `Cmd.StderrChannel`, `Cmd.OnStdoutChannel`, `Cmd.ProcessCompletedChannel`, `Cmd.ExitChannel` 
+* `Cmd.UseChannelApi=true`, if enabled, you can receive from channels: `Cmd.StderrChannel`, `Cmd.OnStdoutChannel`, `Cmd.ProcessCompletedChannel`, `Cmd.ExitChannel` 
 * `Cmd.LastExecutionError` property to get last process execution error, check this [answer](//stackoverflow.com/questions/10385551/get-exit-code-go) to get the exit code
 * `Cmd.OnStateChanged` callback and `Cmd.StateChangedChannel` channel to track process state
 * should work on Linux, and probably MacOS and Windows (untested).
