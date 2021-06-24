@@ -3,13 +3,14 @@ package goproc
 import (
 	"bufio"
 	"fmt"
-	"github.com/kokizzu/gotro/I"
-	"github.com/kokizzu/gotro/L"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/kokizzu/gotro/I"
+	"github.com/kokizzu/gotro/L"
 )
 import "os/exec"
 import "log"
@@ -369,4 +370,9 @@ func (g *Goproc) Cleanup() {
 	for idx := range g.cmds {
 		g.Kill(CommandId(idx))
 	}
+}
+
+// terminate using kill program
+func (g *Goproc) Terminate(cmdId CommandId) error {
+	return exec.Command(`kill`, I.ToS(int64(g.procs[cmdId].exe.Process.Pid))).Run()
 }
