@@ -260,14 +260,14 @@ func (g *Goproc) Start(cmdId CommandId) error {
 
 		// call callback or pipe
 		// * read their stdout and stderr;
-		hasOutCallback := cmd.OnStdout != nil
-		if hasOutCallback || !cmd.HideStdout || cmd.UseChannelApi {
+		hasErrCallback := cmd.OnStderr != nil
+		if hasErrCallback || !cmd.HideStdout || cmd.UseChannelApi {
 			go (func() {
 				scanner := bufio.NewScanner(stderr)
 				scanner.Split(bufio.ScanLines)
 				for scanner.Scan() {
 					line := scanner.Text()
-					if hasOutCallback {
+					if hasErrCallback {
 						err = cmd.OnStdout(cmd, line)
 						L.IsError(err, prefix+`error OnStderr: `+line)
 					}
@@ -278,14 +278,14 @@ func (g *Goproc) Start(cmdId CommandId) error {
 			})()
 		}
 
-		hasErrCallback := cmd.OnStderr != nil
-		if hasErrCallback || !cmd.HideStdout || cmd.UseChannelApi {
+		hasOutCallback := cmd.OnStdout != nil
+		if hasOutCallback || !cmd.HideStdout || cmd.UseChannelApi {
 			go (func() {
 				scanner := bufio.NewScanner(stdout)
 				scanner.Split(bufio.ScanLines)
 				for scanner.Scan() {
 					line := scanner.Text()
-					if hasErrCallback {
+					if hasOutCallback {
 						err = cmd.OnStdout(cmd, line)
 						L.IsError(err, prefix+`error OnStdout: `+line)
 					}
