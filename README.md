@@ -18,6 +18,11 @@ Simple process manager helper library, features:
 * should work on Linux, and probably MacOS and Windows (untested).
 * see [example/](//github.com/kokizzu/goproc/blob/master/example/main.go) for other usage example/demo;
 
+## Versioning
+
+versioning using this format `(YEAR-2020)`.`MDD`.`HMM`,
+so for example v1.213.1549 means it was released at `2021-02-13 15:49`
+
 ## Example
 
 ```
