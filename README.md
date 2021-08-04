@@ -51,7 +51,7 @@ daemon.Start(cmdId) // use "go" keyword if you need non-blocking version
 
 Q: Why not just channel? why callback?
 
-A: Because channel requires a consumer or it would stuck, while callback doesn't. To the interviewer that rejected me because I didn't use channel at the first time, jokes on you XD
+A: Because channel requires a consumer or it would stuck/block, while callback doesn't (this is why I add flag to activate the channel API). To the interviewer that rejected me because I didn't use channel at the first time, jokes on you XD
 
 
 ## TODO
