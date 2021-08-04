@@ -47,6 +47,13 @@ daemon.Start(cmdId) // use "go" keyword if you need non-blocking version
 
 ```
 
+## FAQ
+
+Q: Why not just channel? why callback?
+
+A: Because channel requires a consumer or it would stuck, while callback doesn't. To the interviewer that rejected me because I didn't use channel at the first time, jokes on you XD
+
+
 ## TODO
 
 * implement `.Pause` and `.Resume` API
