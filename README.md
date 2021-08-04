@@ -51,7 +51,7 @@ daemon.Start(cmdId) // use "go" keyword if you need non-blocking version
 
 Q: Why not just channel? why callback?
 
-A: Because channel requires a consumer or it would stuck/block, while callback doesn't (this is why I add flag to activate the channel API). To the interviewer that rejected me because I didn't use channel at the first time, jokes on you XD
+A: Because channel requires a consumer or it would stuck/block, while callback doesn't (this is why I add flag to activate the channel API). To the Percona reviewer that rejected me because I didn't use channel at the first time "the whole thing is written in JavaScript translated to Go, not in Go. Technical task does not adhere to Go best practices which is what would expect from the candidate. One example was that the code is written in JS-like style (e.g. callback). Go code does not use callback like node.js for example", well, jokes on you XD
 
 
 ## TODO
