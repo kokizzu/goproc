@@ -25,7 +25,7 @@ so for example v1.213.1549 means it was released at `2021-02-13 15:49`
 
 ## Example
 
-```
+```go
 
 daemon := goproc.New()
 
