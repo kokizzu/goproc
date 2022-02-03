@@ -367,6 +367,31 @@ func (g *Goproc) StartAll() {
 	}
 }
 
+// start all that not yet started in parallel
+func (g *Goproc) StartAllParallel() *sync.WaitGroup {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+	wg := &sync.WaitGroup{}
+	for idx, cmd := range g.cmds {
+		if cmd.state == NotStarted {
+			wg.Add(1)
+			if cmd.OnExit != nil {
+				onExitCopy := cmd.OnExit
+				cmd.OnExit = func(cmd *Cmd) {
+					onExitCopy(cmd)
+					wg.Done()
+				}
+			} else {
+				cmd.OnExit = func(cmd *Cmd) {
+					wg.Done()
+				}
+			}
+			go g.Start(CommandId(idx))
+		}
+	}
+	return wg
+}
+
 // kill all process
 func (g *Goproc) Cleanup() {
 	g.lock.Lock()
