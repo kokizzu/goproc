@@ -3,6 +3,7 @@ package goproc
 import (
 	"bufio"
 	"fmt"
+	"github.com/kokizzu/gotro/S"
 	"os"
 	"os/signal"
 	"strings"
@@ -43,6 +44,8 @@ type Cmd struct {
 	Program    string   // program name, could be full path or only the program name, depends on PATH environment variables
 	Parameters []string // program parameters
 	WorkDir    string   // starting directory
+
+	PrefixLabel string // prefix label instead of goprocID
 
 	InheritEnv bool     // inherit current console's env
 	Env        []string // environment variables
@@ -204,10 +207,10 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		return fmt.Errorf(`invalid command index, should be zero to %d`, len(g.cmds)-1)
 	}
 
-	prefix := `CMD:` + I.ToStr(idx) + `: `
-
 	cmd := g.cmds[idx]
 	cmd.strCache = `` // reset cache
+
+	prefix := S.IfEmpty(cmd.PrefixLabel, `CMD:`+I.ToStr(idx)) + `: `
 
 	if cmd.state != NotStarted {
 		return fmt.Errorf(`invalid command state=%d already started`, cmd.state)
