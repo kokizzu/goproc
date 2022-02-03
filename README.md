@@ -31,6 +31,7 @@ daemon := goproc.New()
 
 cmdId := daemon.AddCommand(&goproc.Cmd{
     Program: `sleep`, // program to run
+	WorkDir: `/tmp`, // directory to run the program (optional)
     Parameters: []string{`2`}, // command line arguments
     MaxRestart: goproc.RestartForever, // default: NoRestart=0
     OnStderr: func(cmd *goproc.Cmd, line string) error { // optional

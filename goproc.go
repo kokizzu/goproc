@@ -42,6 +42,7 @@ const (
 type Cmd struct {
 	Program    string   // program name, could be full path or only the program name, depends on PATH environment variables
 	Parameters []string // program parameters
+	WorkDir    string   // starting directory
 
 	InheritEnv bool     // inherit current console's env
 	Env        []string // environment variables
@@ -218,6 +219,7 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		// refill process
 		proc := g.procs[idx]
 		proc.exe = exec.Command(cmd.Program, cmd.Parameters...)
+		proc.exe.Dir = cmd.WorkDir
 		if cmd.InheritEnv {
 			proc.exe.Env = append(os.Environ(), cmd.Env...)
 		} else {
