@@ -45,6 +45,8 @@ cmdId := daemon.AddCommand(&goproc.Cmd{
 })
 
 daemon.Start(cmdId) // use "go" keyword if you need non-blocking version
+// ^ by default will only run next command if previous command exited
+// if you want to run them in parralel, use daemon.StartParallel().Wait()
 
 ```
 
