@@ -2,7 +2,7 @@ module github.com/kokizzu/goproc
 
 go 1.17
 
-require github.com/kokizzu/gotro v1.1726.1634
+require github.com/kokizzu/gotro v1.1726.1724
 
 require (
 	github.com/fatih/color v1.13.0 // indirect

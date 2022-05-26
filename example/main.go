@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/kokizzu/goproc"
-	"github.com/kokizzu/gotro/I"
 	"math/rand"
 	"sync"
+
+	"github.com/kokizzu/goproc"
+	"github.com/kokizzu/gotro/I"
 )
 
 func main() {

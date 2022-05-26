@@ -7,12 +7,12 @@ if [ $# -eq 0 ] ; then
 fi
 
 # format indentation
-go fmt ./...
+goimports -w **/*.go
 echo "codes formatted.."
 
 # update deps
 go get -u -v github.com/kokizzu/gotro@latest
-go mod tidy -v
+go mod tidy
 
 # testing if has "gokil" included
 ag gokil **/*.go && ( echo 'echo should not import previous gokil library..' ; kill 0 )
