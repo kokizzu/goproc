@@ -2,7 +2,7 @@ module github.com/kokizzu/goproc
 
 go 1.17
 
-require github.com/kokizzu/gotro v1.1327.2136
+require github.com/kokizzu/gotro v1.1726.1634
 
 require (
 	github.com/fatih/color v1.13.0 // indirect
@@ -13,6 +13,6 @@ require (
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7 // indirect
 	github.com/rogpeppe/go-internal v1.8.1 // indirect
 	github.com/yosuke-furukawa/json5 v0.1.1 // indirect
-	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838 // indirect
-	golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27 // indirect
+	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 )
