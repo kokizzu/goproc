@@ -3,12 +3,14 @@ package goproc
 import (
 	"bufio"
 	"fmt"
-	"github.com/kokizzu/gotro/S"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/kokizzu/gotro/A"
+	"github.com/kokizzu/gotro/S"
 
 	"github.com/kokizzu/gotro/I"
 	"github.com/kokizzu/gotro/L"
@@ -72,7 +74,9 @@ type Cmd struct {
 
 	// channel API
 	UseChannelApi            bool
+	StdoutChanLength         int
 	StdoutChannel            chan string
+	StderrChanLength         int
 	StderrChannel            chan string
 	ProcesssCompletedChannel chan int64
 	ExitChannel              chan bool
@@ -122,17 +126,40 @@ type Process struct {
 }
 
 type Goproc struct {
-	cmds  []*Cmd
-	procs []*Process
-	lock  sync.Mutex
+	cmds       []*Cmd
+	procs      []*Process
+	lock       sync.Mutex
+	HasErrFunc func(err error, fmt string, args ...any) bool
+}
+
+func (q *Goproc) LogHasErr(err error, fmt string, args ...any) bool {
+	if err != nil {
+		log.Printf(fmt, args...)
+		return true
+	}
+	return false
+}
+
+func (q *Goproc) PrintHasErr(err error, msg string, args ...any) bool {
+	if err != nil {
+		fmt.Printf(msg+"\n", args...)
+		return true
+	}
+	return false
+}
+
+func (g *Goproc) DiscardHasErr(err error, _ string, _ ...any) bool {
+	return err != nil
 }
 
 func New() *Goproc {
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	res := &Goproc{
-		cmds: []*Cmd{},
+		cmds:       []*Cmd{},
+		HasErrFunc: L.IsError,
 	}
+
 	go func() {
 		<-c
 		res.Cleanup()
@@ -142,14 +169,14 @@ func New() *Goproc {
 	return res
 }
 
-// add a new command to run, not yet started until Start called
+// AddCommand add a new command to run, not yet started until Start called
 // returns command id
 func (g *Goproc) AddCommand(cmd *Cmd) CommandId {
 	g.lock.Lock()
 	defer g.lock.Unlock()
 	g.cmds = append(g.cmds, cmd)
-	cmd.StdoutChannel = make(chan string)
-	cmd.StderrChannel = make(chan string)
+	cmd.StdoutChannel = make(chan string, cmd.StdoutChanLength)
+	cmd.StderrChannel = make(chan string, cmd.StderrChanLength)
 	cmd.ExitChannel = make(chan bool)
 	cmd.ProcesssCompletedChannel = make(chan int64)
 	cmd.StateChangedChannel = make(chan CmdState)
@@ -166,7 +193,7 @@ func (g *Goproc) Kill(cmdId CommandId) error {
 	return g.Signal(cmdId, os.Kill)
 }
 
-// send signal to process
+// Signal send signal to process
 func (g *Goproc) Signal(cmdId CommandId, signal os.Signal) error {
 	idx := int(cmdId)
 	if idx >= len(g.cmds) || idx < 0 {
@@ -187,20 +214,20 @@ func (g *Goproc) Signal(cmdId CommandId, signal os.Signal) error {
 		// * stop them; signal=os.Kill
 		err := proc.exe.Process.Kill()
 		cmd.setState(Killed)
-		if L.IsError(err, `error proc.exe.Process.Kill`) {
+		if g.HasErrFunc(err, `error proc.exe.Process.Kill`) {
 			return err
 		}
 	} else {
 		// * relay termination signals;
 		err := proc.exe.Process.Signal(signal)
-		if L.IsError(err, `error proc.exe.Process.Signal %d`, signal) {
+		if g.HasErrFunc(err, `error proc.exe.Process.Signal %d`, signal) {
 			return err
 		}
 	}
 	return nil
 }
 
-// start certain command
+// Start start certain command
 func (g *Goproc) Start(cmdId CommandId) error {
 	idx := int(cmdId)
 	if idx >= len(g.cmds) || idx < 0 {
@@ -231,17 +258,17 @@ func (g *Goproc) Start(cmdId CommandId) error {
 
 		// get output buffer and start
 		stderr, err := proc.exe.StderrPipe()
-		if L.IsError(err, prefix+`error proc.exe.StderrPipe %s`, cmd) {
+		if g.HasErrFunc(err, prefix+`error proc.exe.StderrPipe %s`, cmd) {
 			return err
 		}
 		stdout, err := proc.exe.StdoutPipe()
-		if L.IsError(err, prefix+`error proc.exe.StdoutPipe %s`, cmd) {
+		if g.HasErrFunc(err, prefix+`error proc.exe.StdoutPipe %s`, cmd) {
 			return err
 		}
 		log.Printf(prefix + `starting: ` + cmd.String())
 		start := time.Now()
 		err = proc.exe.Start()
-		if L.IsError(err, prefix+`error proc.exe.Start %s`, cmd) {
+		if g.HasErrFunc(err, prefix+`error proc.exe.Start %s`, cmd) {
 			return err
 		}
 		cmd.setState(Started)
@@ -274,7 +301,7 @@ func (g *Goproc) Start(cmdId CommandId) error {
 					line := scanner.Text()
 					if hasErrCallback {
 						err = cmd.OnStdout(cmd, line)
-						L.IsError(err, prefix+`error OnStderr: `+line)
+						g.HasErrFunc(err, prefix+`error OnStderr: `+line)
 					}
 					if !cmd.HideStdout {
 						log.Println(prefix + line)
@@ -292,7 +319,7 @@ func (g *Goproc) Start(cmdId CommandId) error {
 					line := scanner.Text()
 					if hasOutCallback {
 						err = cmd.OnStdout(cmd, line)
-						L.IsError(err, prefix+`error OnStdout: `+line)
+						g.HasErrFunc(err, prefix+`error OnStdout: `+line)
 					}
 					if !cmd.HideStdout {
 						log.Println(prefix + line)
@@ -303,7 +330,7 @@ func (g *Goproc) Start(cmdId CommandId) error {
 
 		// wait for exit
 		err = proc.exe.Wait()
-		if L.IsError(err, prefix+`error proc.exe.Wait %s`, cmd) {
+		if g.HasErrFunc(err, prefix+`error proc.exe.Wait %s`, cmd) {
 			if cmd.state != Killed {
 				cmd.setState(Crashed)
 			}
@@ -356,7 +383,7 @@ func (g *Goproc) Start(cmdId CommandId) error {
 	return nil
 }
 
-// start all that not yet started
+// StartAll start all that not yet started
 func (g *Goproc) StartAll() {
 	g.lock.Lock()
 	defer g.lock.Unlock()
@@ -367,7 +394,7 @@ func (g *Goproc) StartAll() {
 	}
 }
 
-// start all that not yet started in parallel
+// StartAllParallel start all that not yet started in parallel
 func (g *Goproc) StartAllParallel() *sync.WaitGroup {
 	g.lock.Lock()
 	defer g.lock.Unlock()
@@ -392,17 +419,26 @@ func (g *Goproc) StartAllParallel() *sync.WaitGroup {
 	return wg
 }
 
-// kill all process
+// Cleanup kill all process
 func (g *Goproc) Cleanup() {
 	g.lock.Lock()
 	defer g.lock.Unlock()
 
 	for idx := range g.cmds {
-		g.Kill(CommandId(idx))
+		g.HasErrFunc(g.Kill(CommandId(idx)), "")
 	}
 }
 
-// terminate using kill program
+// Terminate kill program
 func (g *Goproc) Terminate(cmdId CommandId) error {
 	return exec.Command(`kill`, I.ToS(int64(g.procs[cmdId].exe.Process.Pid))).Run()
+}
+
+// CommandString return the command string with agruments
+func (g *Goproc) CommandString(cmdId CommandId) string {
+	if cmdId < 0 || cmdId >= CommandId(len(g.cmds)) {
+		return ``
+	}
+	cmd := g.cmds[cmdId]
+	return cmd.Program + ` ` + A.StrJoin(cmd.Parameters, ` `)
 }
