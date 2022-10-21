@@ -59,7 +59,7 @@ A: Because channel requires a consumer, or it would stuck/block if channel is fu
 
 Q: How to ignore error?
 
-A: assign `goproc.HasErrFunc` with `goproc.DiscardHasErr`, other option are: `L.IsError` (default), `goproc.LogHasErr` (uses log), `goproc.PrintHasErr` (uses fmt)
+A: assign `Goproc.HasErrFunc` with `goproc.DiscardHasErr`, other option are: `L.IsError` (default), `goproc.LogHasErr` (uses log), `goproc.PrintHasErr` (uses fmt)
 
 ## TODO
 

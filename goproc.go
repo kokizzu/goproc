@@ -132,7 +132,8 @@ type Goproc struct {
 	HasErrFunc func(err error, fmt string, args ...any) bool
 }
 
-func (q *Goproc) LogHasErr(err error, fmt string, args ...any) bool {
+// LogHasErr to log if error occurred, must return true if err not nil
+func LogHasErr(err error, fmt string, args ...any) bool {
 	if err != nil {
 		log.Printf(fmt, args...)
 		return true
@@ -140,7 +141,8 @@ func (q *Goproc) LogHasErr(err error, fmt string, args ...any) bool {
 	return false
 }
 
-func (q *Goproc) PrintHasErr(err error, msg string, args ...any) bool {
+// PrintHasErr to log using fmt if error occurred, must return true if err not nil
+func PrintHasErr(err error, msg string, args ...any) bool {
 	if err != nil {
 		fmt.Printf(msg+"\n", args...)
 		return true
@@ -148,7 +150,8 @@ func (q *Goproc) PrintHasErr(err error, msg string, args ...any) bool {
 	return false
 }
 
-func (g *Goproc) DiscardHasErr(err error, _ string, _ ...any) bool {
+// DiscardHasErr to ignore if error occurred, must return true if err not nil
+func DiscardHasErr(err error, _ string, _ ...any) bool {
 	return err != nil
 }
 
