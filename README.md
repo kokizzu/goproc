@@ -57,9 +57,9 @@ Q: Why not just channel? why callback?
 
 A: Because channel requires a consumer, or it would stuck/block if channel is full, while callback doesn't (this is why I add flag to activate the channel API). To the Percona reviewer that rejected me because I didn't use channel at the first time "the whole thing is written in JavaScript translated to Go, not in Go. Technical task does not adhere to Go best practices which is what would expect from the candidate. One example was that the code is written in JS-like style (e.g. callback). Go code does not use callback like node.js for example", well, jokes on you XD
 
-Q: How to ignore error?
+Q: How to ignore error being printed?
 
-A: assign `Goproc.HasErrFunc` with `goproc.DiscardHasErr`, other option are: `L.IsError` (default), `goproc.LogHasErr` (uses log), `goproc.PrintHasErr` (uses fmt)
+A: assign `Goproc.HasErrFunc` with `goproc.DiscardHasErr`, other option are: `L.IsError` (default), `goproc.LogHasErr` (uses log), `goproc.PrintHasErr` (uses fmt), or you can always create your own.
 
 ## TODO
 
