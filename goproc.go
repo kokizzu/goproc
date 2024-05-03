@@ -3,9 +3,12 @@ package goproc
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -15,9 +18,6 @@ import (
 	"github.com/kokizzu/gotro/I"
 	"github.com/kokizzu/gotro/L"
 )
-import "os/exec"
-import "log"
-import "sync"
 
 type CommandId int
 type CmdState int
@@ -296,14 +296,14 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		// call callback or pipe
 		// * read their stdout and stderr;
 		hasErrCallback := cmd.OnStderr != nil
-		if hasErrCallback || !cmd.HideStdout || cmd.UseChannelApi {
+		if hasErrCallback || !cmd.HideStderr || cmd.UseChannelApi {
 			go (func() {
 				scanner := bufio.NewScanner(stderr)
 				scanner.Split(bufio.ScanLines)
 				for scanner.Scan() {
 					line := scanner.Text()
 					if hasErrCallback {
-						err = cmd.OnStdout(cmd, line)
+						err = cmd.OnStderr(cmd, line)
 						g.HasErrFunc(err, prefix+`error OnStderr: `+line)
 					}
 					if !cmd.HideStdout {
