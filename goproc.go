@@ -303,7 +303,7 @@ func (g *Goproc) Start(cmdId CommandId) error {
 				for scanner.Scan() {
 					line := scanner.Text()
 					if hasErrCallback {
-						err = cmd.OnStderr(cmd, line)
+						err := cmd.OnStderr(cmd, line)
 						g.HasErrFunc(err, prefix+`error OnStderr: `+line)
 					}
 					if !cmd.HideStdout {
@@ -321,7 +321,7 @@ func (g *Goproc) Start(cmdId CommandId) error {
 				for scanner.Scan() {
 					line := scanner.Text()
 					if hasOutCallback {
-						err = cmd.OnStdout(cmd, line)
+						err := cmd.OnStdout(cmd, line)
 						g.HasErrFunc(err, prefix+`error OnStdout: `+line)
 					}
 					if !cmd.HideStdout {
