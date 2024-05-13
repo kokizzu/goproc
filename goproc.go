@@ -349,6 +349,8 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		var ee *exec.ExitError
 		if errors.As(err, &ee) {
 			cmd.LastExitCode = ee.ExitCode()
+		} else {
+			cmd.LastExitCode = 0
 		}
 
 		if cmd.OnProcessCompleted != nil {
