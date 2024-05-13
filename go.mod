@@ -5,7 +5,7 @@ go 1.21
 require github.com/kokizzu/gotro v1.4105.455
 
 require (
-	github.com/fatih/color v1.16.0 // indirect
+	github.com/fatih/color v1.17.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/jxskiss/base62 v1.1.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect

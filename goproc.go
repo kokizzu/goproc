@@ -2,6 +2,7 @@ package goproc
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -60,6 +61,7 @@ type Cmd struct {
 
 	MaxRestart         int   // -1 = always restart, 0 = only run once, >0 run N times
 	LastExecutionError error // last execution error, useful for OnProcessCompleted or ProcessCompletedChannel
+	LastExitCode       int   // last exit code, will be set before OnProcessCompleted
 	RestartCount       int   // can be overwritten for early exit or restart from 0
 
 	OnStdout           StringCallback        // one line fetched from stdout
@@ -344,6 +346,10 @@ func (g *Goproc) Start(cmdId CommandId) error {
 			}
 		}
 		cmd.LastExecutionError = err
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			cmd.LastExitCode = ee.ExitCode()
+		}
 
 		if cmd.OnProcessCompleted != nil {
 			durationMs := time.Since(start).Milliseconds()
