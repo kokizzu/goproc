@@ -424,20 +424,9 @@ func (g *Goproc) StartAllParallel() *sync.WaitGroup {
 	for idx, cmd := range g.cmds {
 		if cmd.state == NotStarted {
 			wg.Add(1)
-			if cmd.OnExit != nil {
-				onExitCopy := cmd.OnExit
-				cmd.OnExit = func(cmd *Cmd) {
-					onExitCopy(cmd)
-					wg.Done()
-				}
-			} else {
-				cmd.OnExit = func(cmd *Cmd) {
-					wg.Done()
-				}
-			}
 			go func() {
+				defer wg.Done()
 				_ = g.Start(CommandId(idx))
-				wg.Done()
 			}()
 		}
 	}
