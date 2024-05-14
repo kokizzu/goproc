@@ -480,6 +480,7 @@ func Run1(cmd *Cmd) (string, string, error, int) {
 	cmd.OnStdout = func(cmd *Cmd, s string) error {
 		stdoutLock.Lock()
 		stdoutBuff.WriteString(s)
+		stdoutBuff.WriteString("\n")
 		stdoutLock.Unlock()
 		if onStdout != nil {
 			return onStdout(cmd, s)
@@ -489,6 +490,7 @@ func Run1(cmd *Cmd) (string, string, error, int) {
 	cmd.OnStderr = func(cmd *Cmd, s string) error {
 		stderrMutex.Lock()
 		stderrBuff.WriteString(s)
+		stderrBuff.WriteString("\n")
 		stderrMutex.Unlock()
 		if onStderr != nil {
 			return onStderr(cmd, s)

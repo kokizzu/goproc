@@ -2,7 +2,10 @@ module github.com/kokizzu/goproc
 
 go 1.21
 
-require github.com/kokizzu/gotro v1.4105.455
+require (
+	github.com/kokizzu/gotro v1.4105.455
+	github.com/zeebo/assert v1.3.0
+)
 
 require (
 	github.com/fatih/color v1.17.0 // indirect
