@@ -2,6 +2,7 @@ package goproc
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"log"
@@ -274,6 +275,16 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		start := time.Now()
 		err = proc.exe.Start()
 		if g.HasErrFunc(err, prefix+`error proc.exe.Start %s`, cmd) {
+			cmd.LastExecutionError = err
+			if cmd.OnProcessCompleted != nil {
+				durationMs := time.Since(start).Milliseconds()
+				cmd.OnProcessCompleted(cmd, durationMs)
+				if cmd.UseChannelApi {
+					go (func() {
+						cmd.ProcesssCompletedChannel <- durationMs
+					})()
+				}
+			}
 			return err
 		}
 		cmd.setState(Started)
@@ -424,7 +435,10 @@ func (g *Goproc) StartAllParallel() *sync.WaitGroup {
 					wg.Done()
 				}
 			}
-			go g.Start(CommandId(idx))
+			go func() {
+				_ = g.Start(CommandId(idx))
+				wg.Done()
+			}()
 		}
 	}
 	return wg
@@ -452,4 +466,36 @@ func (g *Goproc) CommandString(cmdId CommandId) string {
 	}
 	cmd := g.cmds[cmdId]
 	return cmd.Program + ` ` + A.StrJoin(cmd.Parameters, ` `)
+}
+
+// Run1 execute one command and get stdout stderr output
+func Run1(cmd *Cmd) (string, string, error, int) {
+	proc := New()
+	onStdout := cmd.OnStdout
+	onStderr := cmd.OnStderr
+	stdoutBuff := bytes.Buffer{}
+	stdoutLock := sync.Mutex{}
+	stderrBuff := bytes.Buffer{}
+	stderrMutex := sync.Mutex{}
+	cmd.OnStdout = func(cmd *Cmd, s string) error {
+		stdoutLock.Lock()
+		stdoutBuff.WriteString(s)
+		stdoutLock.Unlock()
+		if onStdout != nil {
+			return onStdout(cmd, s)
+		}
+		return nil
+	}
+	cmd.OnStderr = func(cmd *Cmd, s string) error {
+		stderrMutex.Lock()
+		stderrBuff.WriteString(s)
+		stderrMutex.Unlock()
+		if onStderr != nil {
+			return onStderr(cmd, s)
+		}
+		return nil
+	}
+	proc.AddCommand(cmd)
+	proc.StartAll()
+	return stdoutBuff.String(), stderrBuff.String(), cmd.LastExecutionError, cmd.LastExitCode
 }
