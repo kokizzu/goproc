@@ -424,9 +424,10 @@ func (g *Goproc) StartAllParallel() *sync.WaitGroup {
 	for idx, cmd := range g.cmds {
 		if cmd.state == NotStarted {
 			wg.Add(1)
+			id := CommandId(idx)
 			go func() {
 				defer wg.Done()
-				_ = g.Start(CommandId(idx))
+				_ = g.Start(id)
 			}()
 		}
 	}
