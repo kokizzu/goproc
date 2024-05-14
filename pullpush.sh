@@ -20,6 +20,9 @@ go mod tidy
 ag gokil **/*.go && ( echo 'echo should not import previous gokil library..' ; kill 0 )
 echo "imports checked.."
 
+# test with race
+go test -race .
+
 # add and commit all files
 git add .
 git status

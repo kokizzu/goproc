@@ -464,9 +464,9 @@ func Run1(cmd *Cmd) (string, string, error, int) {
 	onStdout := cmd.OnStdout
 	onStderr := cmd.OnStderr
 	stdoutBuff := bytes.Buffer{}
-	stdoutLock := sync.Mutex{}
+	stdoutLock := &sync.Mutex{}
 	stderrBuff := bytes.Buffer{}
-	stderrMutex := sync.Mutex{}
+	stderrMutex := &sync.Mutex{}
 	cmd.OnStdout = func(cmd *Cmd, s string) error {
 		stdoutLock.Lock()
 		stdoutBuff.WriteString(s)

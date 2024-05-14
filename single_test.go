@@ -38,3 +38,13 @@ func TestRun1missing(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, 0, exitCode)
 }
+
+func TestRun1long(t *testing.T) {
+	_, stderr, err, exitCode := Run1(&Cmd{
+		Program:    `ls`,
+		Parameters: []string{`-alr`},
+	})
+	assert.Equal(t, "", stderr)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, exitCode)
+}
