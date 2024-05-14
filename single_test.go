@@ -48,3 +48,16 @@ func TestRun1long(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0, exitCode)
 }
+
+func TestRunLineslong(t *testing.T) {
+	stdout, stderr, err, exitCode := RunLines(&Cmd{
+		Program:    `ls`,
+		Parameters: []string{`-alr`},
+	})
+	for _, line := range stdout {
+		_ = line
+	}
+	assert.Equal(t, []string{}, stderr)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, exitCode)
+}

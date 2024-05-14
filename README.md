@@ -51,6 +51,8 @@ daemon.Start(cmdId) // use "go" keyword if you need non-blocking version
 daemon.CommandString(cmdId) // returns "sleep 2"
 ```
 
+Alternatively there's shortcut with `Run1` returns string `stdout` and `stderr`, `error`, and `exitCode`. Also there's `RunLines` returns `[]string` instead of `string`.
+
 ## FAQ
 
 Q: Why not just channel? why callback?

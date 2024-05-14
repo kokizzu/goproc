@@ -491,3 +491,35 @@ func Run1(cmd *Cmd) (string, string, error, int) {
 	proc.StartAll()
 	return stdoutBuff.String(), stderrBuff.String(), cmd.LastExecutionError, cmd.LastExitCode
 }
+
+// Run1 execute one command and get stdout stderr output
+func RunLines(cmd *Cmd) ([]string, []string, error, int) {
+	proc := New()
+	onStdout := cmd.OnStdout
+	onStderr := cmd.OnStderr
+	stdoutBuff := []string{}
+	stdoutLock := &sync.Mutex{}
+	stderrBuff := []string{}
+	stderrMutex := &sync.Mutex{}
+	cmd.OnStdout = func(cmd *Cmd, s string) error {
+		stdoutLock.Lock()
+		stdoutBuff = append(stdoutBuff, s)
+		stdoutLock.Unlock()
+		if onStdout != nil {
+			return onStdout(cmd, s)
+		}
+		return nil
+	}
+	cmd.OnStderr = func(cmd *Cmd, s string) error {
+		stderrMutex.Lock()
+		stderrBuff = append(stderrBuff, s)
+		stderrMutex.Unlock()
+		if onStderr != nil {
+			return onStderr(cmd, s)
+		}
+		return nil
+	}
+	proc.AddCommand(cmd)
+	proc.StartAll()
+	return stdoutBuff, stderrBuff, cmd.LastExecutionError, cmd.LastExitCode
+}
