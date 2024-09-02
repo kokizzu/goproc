@@ -133,6 +133,9 @@ type Goproc struct {
 	procs      []*Process
 	lock       sync.RWMutex
 	HasErrFunc func(err error, fmt string, args ...any) bool
+
+	// to reuse existing command
+	cache map[string]int
 }
 
 // LogHasErr to log if error occurred, must return true if err not nil
@@ -165,6 +168,7 @@ func NewWithCleanup() *Goproc {
 	res := &Goproc{
 		cmds:       []*Cmd{},
 		HasErrFunc: L.IsError,
+		cache:      map[string]int{},
 	}
 
 	go func() {
@@ -181,6 +185,7 @@ func New() *Goproc {
 	res := &Goproc{
 		cmds:       []*Cmd{},
 		HasErrFunc: L.IsError,
+		cache:      map[string]int{},
 	}
 	return res
 }
@@ -190,7 +195,16 @@ func New() *Goproc {
 func (g *Goproc) AddCommand(cmd *Cmd) CommandId {
 	g.lock.Lock()
 	defer g.lock.Unlock()
-	g.cmds = append(g.cmds, cmd)
+	cmdKey := cmd.String()
+	cmdId := g.cache[cmdKey]
+	if cmdId > 0 {
+		g.cmds[cmdId] = cmd
+		g.procs[cmdId] = &Process{}
+	} else {
+		g.cmds = append(g.cmds, cmd)
+		cmdId = len(g.cmds) - 1
+		g.procs = append(g.procs, &Process{})
+	}
 	cmd.StdoutChannel = make(chan string, cmd.StdoutChanLength)
 	cmd.StderrChannel = make(chan string, cmd.StderrChanLength)
 	cmd.ExitChannel = make(chan bool)
@@ -198,10 +212,7 @@ func (g *Goproc) AddCommand(cmd *Cmd) CommandId {
 	cmd.StateChangedChannel = make(chan CmdState)
 	cmd.state = NotStarted
 	// * start processes with given arguments and environment variables;
-	g.procs = append(g.procs, &Process{
-		exe: nil,
-	})
-	cmdId := len(g.cmds) - 1
+	g.cache[cmdKey] = cmdId
 	return CommandId(cmdId)
 }
 
