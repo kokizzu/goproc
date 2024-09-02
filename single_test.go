@@ -8,7 +8,7 @@ import (
 )
 
 func TestNotExists(t *testing.T) {
-	proc := New()
+	proc := NewWithCleanup()
 	proc.AddCommand(&Cmd{
 		Program: `not_exists`,
 	})

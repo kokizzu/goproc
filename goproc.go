@@ -69,7 +69,7 @@ type Cmd struct {
 	OnStderr           StringCallback        // one line fetched from stderr
 	OnRestart          IntReturningCallback  // this overwrites RestartDelayMs
 	OnExit             ParameterlessCallback // when max restart reached, or manually killed
-	OnProcessCompleted IntCallback           // when 1x process done, can be restarting depends on RestartCount and MaxCount
+	OnProcessCompleted IntCallback           // when 1x process done, return durationMs can be restarting depends on RestartCount and MaxCount
 	OnStateChanged     CmdStateCallback      // triggered when stated changed
 
 	state    CmdState
@@ -131,7 +131,7 @@ type Process struct {
 type Goproc struct {
 	cmds       []*Cmd
 	procs      []*Process
-	lock       sync.Mutex
+	lock       sync.RWMutex
 	HasErrFunc func(err error, fmt string, args ...any) bool
 }
 
@@ -158,7 +158,8 @@ func DiscardHasErr(err error, _ string, _ ...any) bool {
 	return err != nil
 }
 
-func New() *Goproc {
+// NewWithCleanup might cause stray goroutine if called too many times
+func NewWithCleanup() *Goproc {
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	res := &Goproc{
@@ -172,6 +173,15 @@ func New() *Goproc {
 		os.Exit(1)
 	}()
 
+	return res
+}
+
+// New must call Cleanup before exit or there will be stray
+func New() *Goproc {
+	res := &Goproc{
+		cmds:       []*Cmd{},
+		HasErrFunc: L.IsError,
+	}
 	return res
 }
 
@@ -220,13 +230,13 @@ func (g *Goproc) Signal(cmdId CommandId, signal os.Signal) error {
 		// * stop them; signal=os.Kill
 		err := proc.exe.Process.Kill()
 		cmd.setState(Killed)
-		if g.HasErrFunc(err, `error proc.exe.Process.Kill`) {
+		if g.HasErrFunc(err, `error globalRunner.exe.Process.Kill`) {
 			return err
 		}
 	} else {
 		// * relay termination signals;
 		err := proc.exe.Process.Signal(signal)
-		if g.HasErrFunc(err, `error proc.exe.Process.Signal %d`, signal) {
+		if g.HasErrFunc(err, `error globalRunner.exe.Process.Signal %d`, signal) {
 			return err
 		}
 	}
@@ -236,11 +246,14 @@ func (g *Goproc) Signal(cmdId CommandId, signal os.Signal) error {
 // Start start certain command
 func (g *Goproc) Start(cmdId CommandId) error {
 	idx := int(cmdId)
+	g.lock.RLock()
 	if idx >= len(g.cmds) || idx < 0 {
+		g.lock.RUnlock()
 		return fmt.Errorf(`invalid command index, should be zero to %d`, len(g.cmds)-1)
 	}
 
 	cmd := g.cmds[idx]
+	g.lock.RUnlock()
 	cmd.strCache = `` // reset cache
 
 	prefix := S.IfEmpty(cmd.PrefixLabel, `CMD:`+I.ToStr(idx)) + `: `
@@ -253,7 +266,9 @@ func (g *Goproc) Start(cmdId CommandId) error {
 
 	for {
 		// refill process
+		g.lock.RLock()
 		proc := g.procs[idx]
+		g.lock.RUnlock()
 		proc.exe = exec.Command(cmd.Program, cmd.Parameters...)
 		proc.exe.Dir = cmd.WorkDir
 		if cmd.InheritEnv {
@@ -264,17 +279,17 @@ func (g *Goproc) Start(cmdId CommandId) error {
 
 		// get output buffer and start
 		stderr, err := proc.exe.StderrPipe()
-		if g.HasErrFunc(err, prefix+`error proc.exe.StderrPipe %s`, cmd) {
+		if g.HasErrFunc(err, prefix+`error globalRunner.exe.StderrPipe %s`, cmd) {
 			return err
 		}
 		stdout, err := proc.exe.StdoutPipe()
-		if g.HasErrFunc(err, prefix+`error proc.exe.StdoutPipe %s`, cmd) {
+		if g.HasErrFunc(err, prefix+`error globalRunner.exe.StdoutPipe %s`, cmd) {
 			return err
 		}
-		log.Printf(prefix + `starting: ` + cmd.String())
+		log.Println(prefix + `starting: ` + cmd.String())
 		start := time.Now()
 		err = proc.exe.Start()
-		if g.HasErrFunc(err, prefix+`error proc.exe.Start %s`, cmd) {
+		if g.HasErrFunc(err, prefix+`error globalRunner.exe.Start %s`, cmd) {
 			cmd.LastExecutionError = err
 			if cmd.OnProcessCompleted != nil {
 				durationMs := time.Since(start).Milliseconds()
@@ -346,12 +361,12 @@ func (g *Goproc) Start(cmdId CommandId) error {
 
 		// wait for exit
 		err = proc.exe.Wait()
-		if g.HasErrFunc(err, prefix+`error proc.exe.Wait %s`, cmd) {
+		if g.HasErrFunc(err, prefix+`error globalRunner.exe.Wait %s`, cmd) {
 			if cmd.state != Killed {
 				cmd.setState(Crashed)
 			}
 		} else {
-			log.Println("exited")
+			log.Println(prefix + "exited")
 			if cmd.state != Killed {
 				cmd.setState(Exited)
 			}
@@ -410,8 +425,8 @@ func (g *Goproc) Start(cmdId CommandId) error {
 
 // StartAll start all that not yet started
 func (g *Goproc) StartAll() {
-	g.lock.Lock()
-	defer g.lock.Unlock()
+	g.lock.RLock()
+	defer g.lock.RUnlock()
 	for idx, cmd := range g.cmds {
 		if cmd.state == NotStarted {
 			g.Start(CommandId(idx))
@@ -421,8 +436,8 @@ func (g *Goproc) StartAll() {
 
 // StartAllParallel start all that not yet started in parallel
 func (g *Goproc) StartAllParallel() *sync.WaitGroup {
-	g.lock.Lock()
-	defer g.lock.Unlock()
+	g.lock.RLock()
+	defer g.lock.RUnlock()
 	wg := &sync.WaitGroup{}
 	for idx, cmd := range g.cmds {
 		if cmd.state == NotStarted {
@@ -463,7 +478,6 @@ func (g *Goproc) CommandString(cmdId CommandId) string {
 
 // Run1 execute one command and get stdout stderr output
 func Run1(cmd *Cmd) (string, string, error, int) {
-	proc := New()
 	onStdout := cmd.OnStdout
 	onStderr := cmd.OnStderr
 	stdoutBuff := bytes.Buffer{}
@@ -490,14 +504,15 @@ func Run1(cmd *Cmd) (string, string, error, int) {
 		}
 		return nil
 	}
-	proc.AddCommand(cmd)
-	proc.StartAll()
+	cmdId := globalRunner.AddCommand(cmd)
+	globalRunner.Start(cmdId)
 	return stdoutBuff.String(), stderrBuff.String(), cmd.LastExecutionError, cmd.LastExitCode
 }
 
-// Run1 execute one command and get stdout stderr output
+var globalRunner = NewWithCleanup()
+
+// RunLines execute one command and get stdout stderr output
 func RunLines(cmd *Cmd) ([]string, []string, error, int) {
-	proc := New()
 	onStdout := cmd.OnStdout
 	onStderr := cmd.OnStderr
 	stdoutBuff := []string{}
@@ -522,7 +537,7 @@ func RunLines(cmd *Cmd) ([]string, []string, error, int) {
 		}
 		return nil
 	}
-	proc.AddCommand(cmd)
-	proc.StartAll()
+	cmdId := globalRunner.AddCommand(cmd)
+	globalRunner.Start(cmdId)
 	return stdoutBuff, stderrBuff, cmd.LastExecutionError, cmd.LastExitCode
 }
