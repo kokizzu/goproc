@@ -374,6 +374,9 @@ func (g *Goproc) Start(cmdId CommandId) error {
 			}
 		}
 
+		_ = stderr.Close()
+		_ = stdout.Close()
+
 		// * restart them when they crash;
 		cmd.RestartCount += 1
 		if cmd.MaxRestart > RestartForever && cmd.RestartCount > cmd.MaxRestart {
