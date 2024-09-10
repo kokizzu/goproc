@@ -1,5 +1,7 @@
 # goproc
 
+**NOTE**: versions before `v1.4502.2114` are deleted because it have goroutine leaks.
+
 Simple process manager helper library, features:
 
 * start processes `.AddCommand(Cmd)` and `.Start(cmdId)` or `.StartAll()`, with environment variables `Cmd.Env=[]string{}` and `Cmd.InheritEnv=true` 
