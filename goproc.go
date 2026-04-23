@@ -315,37 +315,25 @@ func (g *Goproc) Start(cmdId CommandId) error {
 		}
 		cmd.setState(Started)
 
-		if cmd.UseChannelApi {
-			go (func() {
-				scanner := bufio.NewScanner(stdout)
-				scanner.Split(bufio.ScanLines)
-				for scanner.Scan() {
-					cmd.StdoutChannel <- scanner.Text()
-				}
-			})()
-			go (func() {
-				scanner := bufio.NewScanner(stderr)
-				scanner.Split(bufio.ScanLines)
-				for scanner.Scan() {
-					cmd.StderrChannel <- scanner.Text()
-				}
-			})()
-		}
-
-		// call callback or pipe
-		// * read their stdout and stderr;
+		// call callback or channel API while draining stdout/stderr.
+		var readers sync.WaitGroup
 		hasErrCallback := cmd.OnStderr != nil
 		if hasErrCallback || !cmd.HideStderr || cmd.UseChannelApi {
+			readers.Add(1)
 			go (func() {
+				defer readers.Done()
 				scanner := bufio.NewScanner(stderr)
 				scanner.Split(bufio.ScanLines)
 				for scanner.Scan() {
 					line := scanner.Text()
+					if cmd.UseChannelApi {
+						cmd.StderrChannel <- line
+					}
 					if hasErrCallback {
 						err := cmd.OnStderr(cmd, line)
 						g.HasErrFunc(err, prefix+`error OnStderr: `+line)
 					}
-					if !cmd.HideStdout {
+					if !cmd.HideStderr {
 						log.Println(prefix + line)
 					}
 				}
@@ -354,11 +342,16 @@ func (g *Goproc) Start(cmdId CommandId) error {
 
 		hasOutCallback := cmd.OnStdout != nil
 		if hasOutCallback || !cmd.HideStdout || cmd.UseChannelApi {
+			readers.Add(1)
 			go (func() {
+				defer readers.Done()
 				scanner := bufio.NewScanner(stdout)
 				scanner.Split(bufio.ScanLines)
 				for scanner.Scan() {
 					line := scanner.Text()
+					if cmd.UseChannelApi {
+						cmd.StdoutChannel <- line
+					}
 					if hasOutCallback {
 						err := cmd.OnStdout(cmd, line)
 						g.HasErrFunc(err, prefix+`error OnStdout: `+line)
@@ -382,6 +375,7 @@ func (g *Goproc) Start(cmdId CommandId) error {
 				cmd.setState(Exited)
 			}
 		}
+		readers.Wait()
 		cmd.LastExecutionError = err
 		var ee *exec.ExitError
 		if errors.As(err, &ee) {
