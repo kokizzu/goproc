@@ -53,7 +53,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.5 // indirect
 	github.com/jordan-wright/email v4.0.1-0.20210109023952-943e75fe5223+incompatible // indirect
 	github.com/jxskiss/base62 v1.1.0 // indirect
-	github.com/klauspost/compress v1.19.0 // indirect
+	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/kokizzu/json5b v0.1.4 // indirect
 	github.com/kokizzu/rand v0.0.0-20221021123447-6043c55a8bad // indirect
